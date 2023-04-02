@@ -6,6 +6,7 @@ from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequest
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import FunctionsClient
+from gotrue import AuthResponse
 
 from .lib.auth_client import SupabaseAuthClient
 from .lib.client_options import ClientOptions
@@ -87,9 +88,12 @@ class Client:
         #     supabase_key=self.supabase_key,
         # )
         self.realtime = None
+
+        data = self.auth.get_session()
+        token = data.access_token if data else self.supabase_key
         self.postgrest = self._init_postgrest_client(
             rest_url=self.rest_url,
-            supabase_key=self.supabase_key,
+            token=token,
             headers=options.headers,
             schema=options.schema,
             timeout=options.postgrest_client_timeout,
@@ -97,6 +101,11 @@ class Client:
         self.storage = self._init_storage_client(
             self.storage_url, self._get_auth_headers(), options.storage_client_timeout
         )
+
+    def set_session(self, access_token: str, refresh_token: str) -> AuthResponse:
+        response = self.auth.set_session(access_token, refresh_token)
+        self.postgrest.auth(access_token)
+        return response
 
     def functions(self) -> FunctionsClient:
         return FunctionsClient(self.functions_url, self._get_auth_headers())
@@ -195,7 +204,7 @@ class Client:
     @staticmethod
     def _init_postgrest_client(
         rest_url: str,
-        supabase_key: str,
+        token: str,
         headers: Dict[str, str],
         schema: str,
         timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
@@ -204,7 +213,7 @@ class Client:
         client = SyncPostgrestClient(
             rest_url, headers=headers, schema=schema, timeout=timeout
         )
-        client.auth(token=supabase_key)
+        client.auth(token=token)
         return client
 
     def _get_auth_headers(self) -> Dict[str, str]:
