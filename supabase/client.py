@@ -99,7 +99,7 @@ class Client:
             timeout=options.postgrest_client_timeout,
         )
         self.storage = self._init_storage_client(
-            self.storage_url, self.storage.session.headers, options.storage_client_timeout
+            self.storage_url, self._get_auth_headers(), options.storage_client_timeout
         )
 
     def set_session(self, access_token: str, refresh_token: str) -> AuthResponse:
