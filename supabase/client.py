@@ -80,7 +80,12 @@ class Client:
             client_options=options,
         )
 
-        options.headers.update(self._get_auth_headers())
+        headers = {
+             "apiKey": self.supabase_key,
+            "Authorization": f"Bearer {self.supabase_key}",
+         }
+
+        options.headers.update(headers)
 
         # TODO: Bring up to parity with JS client.
         # self.realtime: SupabaseRealtimeClient = self._init_realtime_client(
@@ -89,23 +94,28 @@ class Client:
         # )
         self.realtime = None
 
-        data = self.auth.get_session()
-        token = data.access_token if data else self.supabase_key
         self.postgrest = self._init_postgrest_client(
             rest_url=self.rest_url,
-            token=token,
+            token=self.supabase_key,
             headers=options.headers,
             schema=options.schema,
             timeout=options.postgrest_client_timeout,
         )
         self.storage = self._init_storage_client(
-            self.storage_url, self._get_auth_headers(), options.storage_client_timeout
+            self.storage_url, headers, options.storage_client_timeout
         )
 
     def set_session(self, access_token: str, refresh_token: str) -> AuthResponse:
         response = self.auth.set_session(access_token, refresh_token)
         self.postgrest.auth(access_token)
-        self.storage.session.headers.update(self._get_auth_headers())
+
+        headers = {
+            "apiKey": self.supabase_key,
+            "Authorization": f"Bearer {access_token}",
+         }
+
+        self.storage.session.headers.update(headers)
+
         return response
 
     def functions(self) -> FunctionsClient:
